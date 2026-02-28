@@ -1,0 +1,20 @@
+[build]
+  # Netlify build command — injects env vars at build time
+  command = """
+    if [ -z "$SUPABASE_URL" ]; then echo "ERROR: SUPABASE_URL not set"; exit 1; fi && \
+    git clone https://github.com/nicholasgriffintn/flutter-web-netlify.git flutter_install && \
+    export PATH="$PATH:$PWD/flutter_install/flutter/bin" && \
+    flutter doctor && \
+    flutter pub get && \
+    flutter build web --release \
+      --dart-define=SUPABASE_URL=$SUPABASE_URL \
+      --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+      --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY
+  """
+  publish = "build/web"
+
+# SPA routing — all paths serve index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
