@@ -1,4 +1,4 @@
-# HisaabKaro — Voice-First Business Assistant for Indian MSMEs
+# HisaabKaro — Voice-First Business Assistant for Small Businesses in India
 
 > *"WhatsApp jaisi simplicity, accountant jaisi accuracy"*
 
