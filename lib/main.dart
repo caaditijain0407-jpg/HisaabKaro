@@ -10,8 +10,10 @@ import 'package:http/http.dart' as http;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: ''),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
+    url: const String.fromEnvironment('SUPABASE_URL',
+      defaultValue: 'https://txqlreeelhyqpkvlsitj.supabase.co'),
+    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY',
+      defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4cWxyZWVlbGh5cXBrdmxzaXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0OTM2NzMsImV4cCI6MjA4NzA2OTY3M30.Tw-YA-jafRku7OsOHaMUTsLbltvkBdJMSbJXY3TsJQk'),
   );
   SpeechHelper.init(); // fire-and-forget, don't block app startup
   runApp(const HisaabKaroApp());
@@ -22,7 +24,9 @@ final supabase = Supabase.instance.client;
 // ==================== HELPERS ====================
 String getBusinessName() {
   final meta = supabase.auth.currentUser?.userMetadata;
-  if (meta != null && meta['business_name'] != null) return meta['business_name'];
+  if (meta != null && meta['business_name'] != null && meta['business_name'].toString().isNotEmpty) return meta['business_name'];
+  if (meta != null && meta['full_name'] != null) return meta['full_name']; // Google sign-in name
+  if (meta != null && meta['name'] != null) return meta['name'];
   return 'My Business';
 }
 
@@ -46,8 +50,17 @@ bool isGstApplicable() {
 
 String getPhoneNumber() {
   final email = supabase.auth.currentUser?.email ?? '';
+  if (email == 'demo@hisaabkaro.app') return 'Demo Account';
   if (email.contains('@hisaabkaro.app')) return '+91 ${email.split('@')[0]}';
   return email;
+}
+
+String getUserDisplayName() {
+  final meta = supabase.auth.currentUser?.userMetadata;
+  if (meta != null && meta['business_name'] != null) return meta['business_name'];
+  if (meta != null && meta['full_name'] != null) return meta['full_name']; // Google provides this
+  if (meta != null && meta['name'] != null) return meta['name'];
+  return 'My Business';
 }
 
 // ==================== CONSTANTS ====================
@@ -114,7 +127,8 @@ class SpeechHelper {
 }
 
 // ==================== GEMINI AI HELPER ====================
-const String _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+const String _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY',
+  defaultValue: 'AIzaSyB_ihJtQr7vVHuznNl_79omCn9Jk0NLN1M');
 const String _geminiModel = 'gemini-2.5-flash';
 
 class GeminiHelper {
@@ -236,8 +250,51 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
   bool _isLoading = false;
+  bool _isDemoLoading = false;
   bool _showNameField = false;
   String? _error;
+
+  Future<void> _handleDemoLogin() async {
+    setState(() { _isDemoLoading = true; _error = null; });
+    try {
+      const demoEmail = 'demo@hisaabkaro.app';
+      const demoPassword = 'hk_demo_account_2026';
+      try {
+        await supabase.auth.signInWithPassword(email: demoEmail, password: demoPassword);
+      } on AuthException catch (e) {
+        if (e.message.contains('Invalid login credentials')) {
+          await supabase.auth.signUp(email: demoEmail, password: demoPassword,
+            data: {'business_name': 'Sharma General Store'});
+          final uid = supabase.auth.currentUser?.id;
+          if (uid != null) {
+            final customers = [
+              {'user_id': uid, 'name': 'Rajesh Shah', 'phone': '9876543210', 'balance': 2500},
+              {'user_id': uid, 'name': 'Priya Gupta', 'phone': '9876543211', 'balance': 1200},
+              {'user_id': uid, 'name': 'Amit Patel', 'phone': '9876543212', 'balance': 800},
+              {'user_id': uid, 'name': 'Sunita Devi', 'phone': '9876543213', 'balance': 3500},
+              {'user_id': uid, 'name': 'Vikram Singh', 'phone': '9876543214', 'balance': 0},
+            ];
+            await supabase.from('customers').insert(customers);
+            final products = [
+              {'user_id': uid, 'name': 'Cement OPC', 'price': 400, 'stock': 50, 'unit': 'bag', 'low_stock_threshold': 10, 'gst_rate': 28},
+              {'user_id': uid, 'name': 'Sariya 12mm', 'price': 65, 'stock': 200, 'unit': 'piece', 'low_stock_threshold': 50, 'gst_rate': 18},
+              {'user_id': uid, 'name': 'Baalu (Sand)', 'price': 1200, 'stock': 5, 'unit': 'bag', 'low_stock_threshold': 3, 'gst_rate': 5},
+              {'user_id': uid, 'name': 'White Cement', 'price': 30, 'stock': 100, 'unit': 'kg', 'low_stock_threshold': 20, 'gst_rate': 28},
+              {'user_id': uid, 'name': 'Paint Asian', 'price': 250, 'stock': 15, 'unit': 'litre', 'low_stock_threshold': 5, 'gst_rate': 18},
+            ];
+            await supabase.from('products').insert(products);
+          }
+        } else {
+          rethrow;
+        }
+      }
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainShell()));
+    } catch (e) {
+      setState(() => _error = 'Demo login mein problem: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isDemoLoading = false);
+    }
+  }
 
   Future<void> _handleLogin() async {
     setState(() { _isLoading = true; _error = null; });
@@ -269,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      setState(() => _error = 'Something went wrong. Try again.');
+      setState(() => _error = 'Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -295,7 +352,34 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text('Aapka Voice-First Business Assistant', textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
+
+              // ---- TRY DEMO Button (top, most prominent) ----
+              ElevatedButton.icon(
+                onPressed: _isDemoLoading ? null : _handleDemoLogin,
+                icon: _isDemoLoading
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.play_arrow_rounded, size: 22),
+                label: Text(_isDemoLoading ? 'Loading demo...' : 'Try Demo \u2192 No Login Needed', style: const TextStyle(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B00), foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Sample data ke saath instantly explore karo', textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              const SizedBox(height: 24),
+
+              // ---- OR divider ----
+              Row(children: [
+                Expanded(child: Divider(color: Colors.grey[300])),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('ya apna account banao', style: TextStyle(fontSize: 13, color: Colors.grey[500]))),
+                Expanded(child: Divider(color: Colors.grey[300])),
+              ]),
+              const SizedBox(height: 24),
               const Text('Apna phone number daalo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
               TextField(
