@@ -1,4 +1,4 @@
-# HisaabKaro — Voice-First Business Assistant for Small Indian Businesses
+# HisaabKaro — Voice-First Business Assistant for Indian MSMEs
 
 > *"WhatsApp jaisi simplicity, accountant jaisi accuracy"*
 
@@ -32,7 +32,7 @@ A **voice-first** business assistant where a shopkeeper can say:
 | Feature | Description |
 |---------|-------------|
 | **Voice Input** 🎤 | Speak in Hindi/Hinglish — text appears in chat, edit before sending |
-| **Smart Chat** 💬 | Understands Hindi, Hinglish, English commands with keyword matching |
+| **Smart Chat** 💬 | Gemini 2.5 Flash AI — understands natural Hindi/Hinglish/English with live business context |
 | **Voice Payments** 💰 | Say "Shah ke ₹500 aa gaye" → payment auto-recorded |
 | **Credit Tracking** 📒 | Track udhari per customer with full transaction history |
 | **Invoice Generation** 🧾 | Create PDF invoices with GST, units, decimal quantities |
@@ -49,10 +49,10 @@ A **voice-first** business assistant where a shopkeeper can say:
 
 | Feature | Status |
 |---------|--------|
-| **Gemini AI Chat** | Next sprint — replace keywords with real AI understanding |
 | **Android APK** | Ready for build |
 | **WhatsApp Reminders** | Payment reminder via WhatsApp share |
 | **Offline Mode** | SQLite cache for no-internet areas |
+| **AI Business Insights** | Smart suggestions on dashboard ("Sharma ka payment 15 din se pending hai") |
 
 ---
 
@@ -70,7 +70,7 @@ A **voice-first** business assistant where a shopkeeper can say:
 | **Backend** | Supabase (PostgreSQL + Auth + Realtime) |
 | **PDF Generation** | `pdf` + `printing` Flutter packages |
 | **Voice Input** | `speech_to_text` package (Web Speech API on Chrome, Google STT on Android) |
-| **AI (planned)** | Google Gemini 2.5 Flash API |
+| **AI Chat** | Google Gemini 2.5 Flash API (live business context, Hinglish responses) |
 
 ## Database Schema
 
@@ -95,7 +95,7 @@ transactions → id, user_id, customer_id, type (credit/debit/cash_sale), amount
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/HisaabKaro.git
+git clone https://github.com/caaditijain0407-jpg/HisaabKaro.git
 cd HisaabKaro
 
 # Install dependencies
@@ -166,6 +166,25 @@ The chatbot understands these commands in **Hindi, Hinglish, and English**:
 
 ---
 
+## AI Architecture
+
+HisaabKaro uses a **dual-mode chat system** for maximum reliability:
+
+**Mode 1: Gemini AI (Primary)** — When API key is configured
+- Every message goes to Gemini 2.5 Flash with **live business context** (customer balances, product stock, today's sales)
+- Gemini responds in natural Hinglish with ₹ symbols
+- For payment commands, Gemini returns a hidden action tag (`##ACTION:PAYMENT|name|amount##`) that the app auto-executes
+- System prompt is dynamically built with real-time Supabase data
+
+**Mode 2: Keyword Matching (Fallback)** — When no API key or API is down
+- Regex-based Hindi/Hinglish/English pattern matching
+- Handles payments, udhari list, stock check, today's summary, bill creation
+- Zero latency, works offline
+
+This ensures the app **never breaks** — if AI is unavailable, keyword mode handles everything.
+
+---
+
 ## Project Structure
 
 ```
@@ -189,15 +208,17 @@ Currently everything is in a single `main.dart` file (~2000 lines) for rapid ite
 - [x] Payment recording with date/mode/notes
 - [x] Voice input (speech-to-text)
 - [x] Hindi/Hinglish keyword chatbot
+- [x] **Gemini 2.5 Flash AI integration** — natural language understanding
+- [x] **AI-powered payment recording** — "Shah ke 200 aa gaye" auto-records
 - [x] Quick Cash Sale
 - [x] Search, sort, filter
 - [x] Dashboard with invoice history
+- [x] Netlify web deployment
 
-### Phase 2: AI Integration (Next)
-- [ ] Gemini 2.5 Flash API integration
-- [ ] Natural language understanding (any Hindi sentence)
+### Phase 2: Enhancements (Next)
 - [ ] AI-powered business insights on dashboard
 - [ ] Smart suggestions ("Sharma ka payment 15 din se pending hai")
+- [ ] Multi-turn conversation memory
 
 ### Phase 3: Play Store Release
 - [ ] Split code into proper architecture
