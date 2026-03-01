@@ -126,17 +126,15 @@ class SpeechHelper {
   }
 }
 
-// ==================== GEMINI AI HELPER ====================
-const String _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY',
-  defaultValue: 'AIzaSyB_ihJtQr7vVHuznNl_79omCn9Jk0NLN1M');
-const String _geminiModel = 'gemini-2.5-flash';
+// ==================== AI CHAT HELPER (Groq) ====================
+const String _aiApiKey = String.fromEnvironment('AI_API_KEY', defaultValue: '');
+const String _aiModel = 'llama-3.3-70b-versatile'; // Free, fast, great Hindi support
 
-class GeminiHelper {
-  static bool get isConfigured => _geminiApiKey.isNotEmpty;
+class AIHelper {
+  static bool get isConfigured => _aiApiKey.isNotEmpty;
 
   /// Build system prompt with live business context
   static Future<String> _buildSystemPrompt() async {
-    // Fetch live business data for context
     String customerList = '';
     String productList = '';
     String todaySummary = '';
@@ -189,33 +187,37 @@ For anything else, be helpful and suggest what you can do.''';
   }
 
   static Future<String> chat(String userMessage) async {
-    if (!isConfigured) return 'Gemini API key set nahi hai. Settings mein API key daalo.';
+    if (!isConfigured) return 'AI API key set nahi hai. Keyword mode mein chal raha hai.';
     
     try {
       final systemPrompt = await _buildSystemPrompt();
-      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$_geminiModel:generateContent?key=$_geminiApiKey');
+      final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
       
       final response = await http.post(url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_aiApiKey',
+        },
         body: jsonEncode({
-          'system_instruction': {'parts': [{'text': systemPrompt}]},
-          'contents': [{'role': 'user', 'parts': [{'text': userMessage}]}],
-          'generationConfig': {
-            'temperature': 0.7,
-            'maxOutputTokens': 300,
-          },
+          'model': _aiModel,
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': userMessage},
+          ],
+          'temperature': 0.7,
+          'max_tokens': 300,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'];
+        final text = data['choices']?[0]?['message']?['content'];
         return text ?? 'Koi response nahi aaya. Dobara try karo.';
       } else {
         final error = jsonDecode(response.body);
         final msg = error['error']?['message'] ?? 'Unknown error';
         if (response.statusCode == 429) return 'API limit ho gaya. Thodi der baad try karo.';
-        if (response.statusCode == 403) return 'API key invalid hai. Settings mein check karo.';
+        if (response.statusCode == 401) return 'API key invalid hai. Check karo.';
         return 'Error (${response.statusCode}): $msg';
       }
     } catch (e) {
@@ -506,9 +508,9 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       String reply;
 
-      if (GeminiHelper.isConfigured) {
-        // ===== AI MODE: Use Gemini =====
-        reply = await GeminiHelper.chat(text);
+      if (AIHelper.isConfigured) {
+        // ===== AI MODE: Use Groq =====
+        reply = await AIHelper.chat(text);
         
         // Parse ACTION commands from Gemini's response
         final actionMatch = RegExp(r'##ACTION:PAYMENT\|(.+?)\|(\d+\.?\d*)##').firstMatch(reply);
