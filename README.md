@@ -2,7 +2,9 @@
 
 > *"WhatsApp jaisi simplicity, accountant jaisi accuracy"*
 
-HisaabKaro is a Flutter mobile app designed for small Indian vendors — kirana stores, hardware shops, street vendors — who need simple tools to manage their daily business. No complex accounting software. No confusing screens. Just speak in Hindi and get things done.
+HisaabKaro is a Flutter web app designed for small Indian vendors — kirana stores, hardware shops, street vendors — who need simple tools to manage their daily business. No complex accounting software. No confusing screens. Just speak in Hindi and get things done.
+
+🔗 **[Live Demo](https://caaditijain0407-jpg.github.io/HisaabKaro/)** — Try it instantly, no signup needed!
 
 ---
 
@@ -32,7 +34,7 @@ A **voice-first** business assistant where a shopkeeper can say:
 | Feature | Description |
 |---------|-------------|
 | **Voice Input** 🎤 | Speak in Hindi/Hinglish — text appears in chat, edit before sending |
-| **Smart Chat** 💬 | Gemini 2.5 Flash AI — understands natural Hindi/Hinglish/English with live business context |
+| **AI Chat** 🤖 | Groq Llama 3.3 70B — understands natural Hindi/Hinglish/English with live business context |
 | **Voice Payments** 💰 | Say "Shah ke ₹500 aa gaye" → payment auto-recorded |
 | **Credit Tracking** 📒 | Track udhari per customer with full transaction history |
 | **Invoice Generation** 🧾 | Create PDF invoices with GST, units, decimal quantities |
@@ -44,6 +46,7 @@ A **voice-first** business assistant where a shopkeeper can say:
 | **Invoice History** 📋 | View & reprint past invoices from dashboard |
 | **Business Profile** 🏪 | Name, address, GSTIN on invoices |
 | **GST Toggle** | Enable/disable GST per business, item-wise GST rates |
+| **Demo Mode** ▶️ | One-tap demo login with sample data — no signup needed |
 
 ### Planned
 
@@ -56,97 +59,35 @@ A **voice-first** business assistant where a shopkeeper can say:
 
 ---
 
-## Screenshots
-
-*Coming soon — app screenshots on mobile device*
-
----
-
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | Flutter (Dart) — single `main.dart` file |
-| **Backend** | Supabase (PostgreSQL + Auth + Realtime) |
+| **Frontend** | Flutter (Dart) |
+| **Backend** | Supabase (PostgreSQL + Auth + Row Level Security) |
+| **AI Chat** | Groq API — Llama 3.3 70B Versatile (Hindi/Hinglish/English) |
 | **PDF Generation** | `pdf` + `printing` Flutter packages |
 | **Voice Input** | `speech_to_text` package (Web Speech API on Chrome, Google STT on Android) |
-| **AI Chat** | Google Gemini 2.5 Flash API (live business context, Hinglish responses) |
-
-## Database Schema
-
-```
-customers    → id, user_id, name, phone, balance, created_at
-products     → id, user_id, name, price, stock, unit, low_stock_threshold, gst_rate, created_at
-invoices     → id, user_id, customer_id, invoice_number, items (JSONB), subtotal, gst_amount, total, payment_type, created_at
-transactions → id, user_id, customer_id, type (credit/debit/cash_sale), amount, items (JSONB), notes, created_at
-```
+| **Hosting** | GitHub Pages |
 
 ---
 
-## Getting Started
+## AI Architecture
 
-### Prerequisites
+HisaabKaro uses a **dual-mode chat system** for maximum reliability:
 
-- Flutter SDK (3.x+)
-- Chrome (for web development)
-- A Supabase project (free tier works)
+**Mode 1: Groq AI (Primary)** — When API key is configured
+- Every message goes to Llama 3.3 70B via Groq with **live business context** (customer balances, product stock, today's sales)
+- AI responds in natural Hinglish with ₹ symbols
+- For payment commands, AI returns a hidden action tag (`##ACTION:PAYMENT|name|amount##`) that the app auto-executes
+- System prompt is dynamically built with real-time Supabase data
 
-### Setup
+**Mode 2: Keyword Matching (Fallback)** — When no API key or API is down
+- Regex-based Hindi/Hinglish/English pattern matching
+- Handles payments, udhari list, stock check, today's summary, bill creation
+- Zero latency, works offline
 
-```bash
-# Clone the repo
-git clone https://github.com/caaditijain0407-jpg/HisaabKaro.git
-cd HisaabKaro
-
-# Install dependencies
-flutter pub get
-
-# Add required packages (if not in pubspec.yaml)
-flutter pub add supabase_flutter
-flutter pub add pdf
-flutter pub add printing
-flutter pub add path_provider
-flutter pub add speech_to_text
-
-# Run on Chrome
-flutter run -d chrome
-
-# Build Android APK
-flutter build apk --release
-```
-
-### Environment Setup
-
-All secrets are passed via `--dart-define` (not hardcoded). Copy `.env.example` to `.env` and fill in your keys:
-
-```bash
-# Run locally with your keys
-flutter run -d chrome \
-  --dart-define=SUPABASE_URL=your_url \
-  --dart-define=SUPABASE_ANON_KEY=your_key \
-  --dart-define=GEMINI_API_KEY=your_gemini_key
-
-# Build for web deployment
-flutter build web --release \
-  --dart-define=SUPABASE_URL=your_url \
-  --dart-define=SUPABASE_ANON_KEY=your_key \
-  --dart-define=GEMINI_API_KEY=your_gemini_key
-```
-
-### Deployment
-
-**Live Demo:** Deploy to Netlify in 2 minutes — see [DEPLOY_NETLIFY.md](DEPLOY_NETLIFY.md)
-
-### Supabase Configuration
-
-1. Create the 4 tables (customers, products, invoices, transactions) — see schema above
-2. Disable RLS on all tables (for MVP)
-3. Turn OFF email confirmation in Auth settings
-4. Run this SQL for decimal stock support:
-```sql
-ALTER TABLE products ALTER COLUMN stock TYPE NUMERIC;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS gst_rate NUMERIC DEFAULT 18;
-```
+This ensures the app **never breaks** — if AI is unavailable, keyword mode handles everything.
 
 ---
 
@@ -166,54 +107,80 @@ The chatbot understands these commands in **Hindi, Hinglish, and English**:
 
 ---
 
-## AI Architecture
+## Database Schema
 
-HisaabKaro uses a **dual-mode chat system** for maximum reliability:
+```
+customers    → id, user_id, name, phone, balance, created_at
+products     → id, user_id, name, price, stock, unit, low_stock_threshold, gst_rate, created_at
+invoices     → id, user_id, customer_id, invoice_number, items (JSONB), subtotal, gst_amount, total, payment_type, created_at
+transactions → id, user_id, customer_id, type (credit/debit/cash_sale), amount, items (JSONB), notes, created_at
+```
 
-**Mode 1: Gemini AI (Primary)** — When API key is configured
-- Every message goes to Gemini 2.5 Flash with **live business context** (customer balances, product stock, today's sales)
-- Gemini responds in natural Hinglish with ₹ symbols
-- For payment commands, Gemini returns a hidden action tag (`##ACTION:PAYMENT|name|amount##`) that the app auto-executes
-- System prompt is dynamically built with real-time Supabase data
-
-**Mode 2: Keyword Matching (Fallback)** — When no API key or API is down
-- Regex-based Hindi/Hinglish/English pattern matching
-- Handles payments, udhari list, stock check, today's summary, bill creation
-- Zero latency, works offline
-
-This ensures the app **never breaks** — if AI is unavailable, keyword mode handles everything.
+Row Level Security (RLS) is enabled — each user can only access their own data.
 
 ---
 
-## Project Structure
+## Getting Started
 
-```
-lib/
-  main.dart          # Complete app (single file for MVP)
-android/
-  app/src/main/
-    AndroidManifest.xml   # Mic permission for voice
+### Prerequisites
+
+- Flutter SDK (3.x+)
+- Chrome (for web development)
+- A Supabase project (free tier works)
+- A Groq API key (free at https://console.groq.com)
+
+### Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/caaditijain0407-jpg/HisaabKaro.git
+cd HisaabKaro
+
+# Install dependencies
+flutter pub get
+
+# Run on Chrome with your keys
+flutter run -d chrome \
+  --dart-define=SUPABASE_URL=your_supabase_url \
+  --dart-define=SUPABASE_ANON_KEY=your_supabase_key \
+  --dart-define=AI_API_KEY=your_groq_key
+
+# Build for deployment
+flutter build web --release \
+  --dart-define=SUPABASE_URL=your_supabase_url \
+  --dart-define=SUPABASE_ANON_KEY=your_supabase_key \
+  --dart-define=AI_API_KEY=your_groq_key
 ```
 
-Currently everything is in a single `main.dart` file (~2000 lines) for rapid iteration. Will be split into proper architecture before Play Store release.
+### Supabase Configuration
+
+1. Create the 4 tables (customers, products, invoices, transactions) — see schema above
+2. Enable RLS on all tables with `auth.uid() = user_id` policies
+3. Turn OFF email confirmation in Auth settings
+4. Run this SQL for decimal stock support:
+```sql
+ALTER TABLE products ALTER COLUMN stock TYPE NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS gst_rate NUMERIC DEFAULT 18;
+```
 
 ---
 
 ## Roadmap
 
 ### Phase 1: MVP ✅ (Current)
-- [x] Phone number auth
+- [x] Phone number auth + Demo mode
 - [x] Customer & Product CRUD
 - [x] Invoice generation with PDF
 - [x] Payment recording with date/mode/notes
 - [x] Voice input (speech-to-text)
 - [x] Hindi/Hinglish keyword chatbot
-- [x] **Gemini 2.5 Flash AI integration** — natural language understanding
-- [x] **AI-powered payment recording** — "Shah ke 200 aa gaye" auto-records
+- [x] AI-powered chat (Groq Llama 3.3 70B)
+- [x] AI-powered payment recording — "Shah ke 200 aa gaye" auto-records
 - [x] Quick Cash Sale
 - [x] Search, sort, filter
 - [x] Dashboard with invoice history
-- [x] Netlify web deployment
+- [x] Row Level Security (data isolation per user)
+- [x] GitHub Pages deployment
 
 ### Phase 2: Enhancements (Next)
 - [ ] AI-powered business insights on dashboard
@@ -259,7 +226,7 @@ Currently everything is in a single `main.dart` file (~2000 lines) for rapid ite
 
 ## Contributing
 
-This is currently a learning project but contributions are welcome! Please open an issue first to discuss what you'd like to change.
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
 
 ## License
 
